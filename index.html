@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCTONION — The Living Theory</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: #000;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #aaccff;
+    user-select: none;
+}
+#canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+}
+#hud {
+    position: fixed;
+    top: 20px; left: 20px;
+    font-size: 13px;
+    line-height: 1.8;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s;
+    text-shadow: 0 0 10px rgba(100, 150, 255, 0.4);
+}
+#hud .val { color: #fff; }
+#hud .lbl { color: #4a6a8a; }
+#hud .hi  { color: #ffdd44; }
+
+#cbar {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    width: 280px; height: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    opacity: 0; transition: opacity 1s;
+}
+#cfill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ff3333, #aa44ff, #4499ff, #eeeeff);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+#score-box {
+    position: fixed;
+    top: 20px; right: 20px;
+    text-align: right;
+    pointer-events: none;
+    opacity: 0; transition: opacity 1s;
+}
+.sc-val { font-size: 32px; color: #fff; text-shadow: 0 0 20px rgba(100,150,255,0.4); }
+.sc-lbl { font-size: 11px; color: #3a5a7a; letter-spacing: 3px; }
+.sc-lvl { font-size: 14px; color: #6688aa; letter-spacing: 2px; margin-top: 4px; }
+
+#intro {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #080820 0%, #000 70%);
+    z-index: 100;
+}
+#intro h1 {
+    font-size: 52px;
+    letter-spacing: 24px;
+    color: #8aaacc;
+    text-shadow: 0 0 40px rgba(80,130,220,0.4);
+    margin-bottom: 12px;
+    font-weight: 300;
+}
+.sub {
+    font-size: 14px;
+    color: #3a5570;
+    letter-spacing: 6px;
+    margin-bottom: 60px;
+}
+.btn {
+    font-size: 16px;
+    color: #4499cc;
+    letter-spacing: 4px;
+    border: 1px solid rgba(68,150,200,0.25);
+    padding: 14px 44px;
+    cursor: pointer;
+    transition: all 0.4s;
+    background: transparent;
+    font-family: inherit;
+}
+.btn:hover {
+    background: rgba(68,150,200,0.08);
+    border-color: rgba(68,150,200,0.5);
+    text-shadow: 0 0 20px rgba(68,150,200,0.4);
+}
+.hint {
+    position: absolute; bottom: 30px;
+    font-size: 11px; color: #253545;
+    letter-spacing: 1px;
+}
+#manual {
+    position: fixed;
+    bottom: 60px; left: 50%;
+    transform: translateX(-50%);
+    display: none; align-items: center; gap: 12px;
+    opacity: 0.5;
+}
+#manual input[type=range] { width: 220px; accent-color: #4499cc; }
+#manual label { font-size: 11px; color: #3a5570; }
+#manual span { font-size: 12px; color: #4499cc; min-width: 35px; }
+
+#equations {
+    position: fixed;
+    bottom: 100px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,0);
+    transition: color 2s;
+    pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 15px rgba(100,150,255,0.3);
+}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="hud">
+    <div><span class="lbl">theta </span><span class="val" id="h-th">--</span><span class="lbl">  deg</span></div>
+    <div><span class="lbl">chi^2 </span><span class="val" id="h-c2">--</span></div>
+    <div><span class="lbl">eps   </span><span class="val" id="h-ep">--</span></div>
+    <div><span class="lbl">breath</span><span class="val" id="h-br">--</span><span class="lbl"> s</span></div>
+    <div style="margin-top:8px"><span class="lbl">coherence </span><span class="val hi" id="h-co">--</span></div>
+</div>
+
+<div id="cbar"><div id="cfill"></div></div>
+
+<div id="score-box">
+    <div class="sc-lbl">RESONANCE</div>
+    <div class="sc-val" id="sc-v">0</div>
+    <div class="sc-lvl" id="sc-l">CHAOS</div>
+</div>
+
+<div id="equations"></div>
+
+<div id="manual">
+    <label>theta</label>
+    <input type="range" id="theta-sl" min="20" max="80" value="30" step="0.5">
+    <span id="sl-v">30</span>
+</div>
+
+<div id="intro">
+    <h1>OCTONION</h1>
+    <div class="sub">THE LIVING THEORY</div>
+    <button class="btn" id="go">BREATHE TO BEGIN</button>
+    <div class="hint">microphone captures breathing rhythm  |  press M for manual mode</div>
+</div>
+
+<script>
+// =========================================================
+//  OCTONION — The Living Theory
+//  Engine: G2 -> PSL(2,7) -> Z7 -> modular forms Gamma(7)
+//  Breathing -> tau on |tau|=1 -> chi^2 -> visual coherence
+// =========================================================
+
+const PI  = Math.PI;
+const TAU = 2 * PI;
+const S14 = Math.sin(PI / 14); // 0.22252 — Cabibbo
+
+// ---------- MODULAR FORMS (real computation) ----------
+
+function theta7r(r, th_deg, N) {
+    N = N || 8;
+    const th = th_deg * PI / 180;
+    const c = Math.cos(th), s = Math.sin(th);
+    let re = 0, im = 0;
+    for (let n = -N; n <= N; n++) {
+        const m = 7 * n + r;
+        const e = m * m / 14;
+        const decay = Math.exp(-TAU * s * e);
+        const phase = TAU * c * e;
+        re += decay * Math.cos(phase);
+        im += decay * Math.sin(phase);
+    }
+    return [re, im];
+}
+
+function cSq(z)    { return [z[0]*z[0]-z[1]*z[1], 2*z[0]*z[1]]; }
+function cAdd(a,b) { return [a[0]+b[0], a[1]+b[1]]; }
+function cAbs(z)   { return Math.sqrt(z[0]*z[0]+z[1]*z[1]); }
+
+function chi2at(th_deg) {
+    const t = [];
+    for (let r = 0; r < 7; r++) t.push(theta7r(r, th_deg));
+    const Y1 = cAdd(cSq(t[1]), cSq(t[6]));
+    const Y2 = cAdd(cSq(t[2]), cSq(t[5]));
+    const eps = cAbs(Y2) / cAbs(Y1);
+    const vNLO = S14 * (1 + 0.494 * eps * eps);
+    const vCb  = (6/7) * S14 * S14;
+    const obs = [
+        [eps*eps,               0.02234, 0.00040],
+        [Math.pow(eps,1.5),     0.05946, 0.00050],
+        [vNLO,                  0.22500, 0.00067],
+        [vCb,                   0.04220, 0.00080],
+        [Math.sqrt(Math.pow(eps,1.575)), 0.22500, 0.00100]
+    ];
+    let c2 = 0;
+    for (const [p,e,s] of obs) { const d=(p-e)/s; c2+=d*d; }
+    return { chi2: c2, epsilon: eps };
+}
+
+// Pre-compute lookup (theta 20..80, step 0.5)
+const LUT = [];
+let c2Min = 1e9, c2Max = 0;
+for (let i = 0; i <= 120; i++) {
+    const th = 20 + i * 0.5;
+    const r = chi2at(th);
+    LUT.push(r);
+    if (r.chi2 < c2Min) c2Min = r.chi2;
+    if (r.chi2 > c2Max) c2Max = r.chi2;
+}
+const logMin = Math.log(c2Min + 1);
+const logMax = Math.log(c2Max + 1);
+
+function lookup(th) {
+    const idx = (th - 20) / 0.5;
+    const i = Math.max(0, Math.min(119, Math.floor(idx)));
+    const f = idx - i;
+    const a = LUT[i], b = LUT[Math.min(120, i+1)];
+    return {
+        chi2:    a.chi2    + f * (b.chi2    - a.chi2),
+        epsilon: a.epsilon + f * (b.epsilon - a.epsilon)
+    };
+}
+
+// ---------- AUDIO / BREATH ----------
+
+let actx, analyser, adata, micOn = false;
+let ampHist = [], peaks = [], breathPeriod = 10;
+let smoothAmp = 0, lastPeak = 0, inhaling = false;
+let manual = false, manualTh = 30;
+
+async function initMic() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        actx = new AudioContext();
+        const src = actx.createMediaStreamSource(stream);
+        analyser = actx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.85;
+        src.connect(analyser);
+        adata = new Uint8Array(analyser.fftSize);
+        micOn = true;
+    } catch (e) {
+        manual = true;
+        document.getElementById('manual').style.display = 'flex';
+    }
+}
+
+function rms() {
+    if (!micOn) return 0;
+    analyser.getByteTimeDomainData(adata);
+    let s = 0;
+    for (let i = 0; i < adata.length; i++) { const v=(adata[i]-128)/128; s+=v*v; }
+    return Math.sqrt(s / adata.length);
+}
+
+function detectBreath(t) {
+    if (manual) return;
+    const a = rms();
+    smoothAmp = smoothAmp * 0.92 + a * 0.08;
+    ampHist.push({ t, a: smoothAmp });
+    while (ampHist.length > 0 && ampHist[0].t < t - 30000) ampHist.shift();
+    if (ampHist.length < 20) return;
+    const rec = ampHist.slice(-10);
+    const old = ampHist.slice(-20, -10);
+    const avgR = rec.reduce((s,v) => s+v.a, 0) / rec.length;
+    const avgO = old.reduce((s,v) => s+v.a, 0) / old.length;
+    if (avgR > avgO * 1.12 && !inhaling && t - lastPeak > 3000) {
+        inhaling = true;
+        if (lastPeak > 0) {
+            const p = (t - lastPeak) / 1000;
+            if (p > 4 && p < 30) {
+                peaks.push(p);
+                if (peaks.length > 5) peaks.shift();
+                breathPeriod = peaks.reduce((a,b)=>a+b,0) / peaks.length;
+            }
+        }
+        lastPeak = t;
+    }
+    if (avgR < avgO * 0.92) inhaling = false;
+}
+
+function getTheta() {
+    if (manual) return manualTh;
+    return Math.max(20, Math.min(80, 630 / breathPeriod));
+}
+
+// ---------- AUDIO FEEDBACK (3 generations) ----------
+
+let oscs = [], gains = [];
+function initTones() {
+    if (!actx) actx = new AudioContext();
+    const freqs = [174.6, 261.6, 392.0]; // F3, C4, G4 — open fifth voicing
+    for (let i = 0; i < 3; i++) {
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = 'sine';
+        o.frequency.value = freqs[i];
+        g.gain.value = 0;
+        o.connect(g);
+        g.connect(actx.destination);
+        o.start();
+        oscs.push(o); gains.push(g);
+    }
+}
+function updateTones(coh) {
+    if (!gains.length) return;
+    for (let i = 0; i < 3; i++) {
+        const thr = i * 0.2;
+        const v = Math.max(0, coh - thr) * coh * 0.04;
+        gains[i].gain.setTargetAtTime(v, actx.currentTime, 0.15);
+    }
+}
+
+// ---------- PARTICLES ----------
+
+const N_PART = 700;
+let parts = [], targets = [];
+
+function initParts(W, H) {
+    const cx = W/2, cy = H/2;
+    parts = [];
+    for (let i = 0; i < N_PART; i++) {
+        parts.push({
+            x: cx + (Math.random()-0.5)*W*0.9,
+            y: cy + (Math.random()-0.5)*H*0.9,
+            vx: (Math.random()-0.5)*1.5,
+            vy: (Math.random()-0.5)*1.5,
+            sz: 0.8 + Math.random()*1.8,
+            gen: i % 3,
+            idx7: i % 7,
+            trail: [],
+            tx: 0, ty: 0, hue: 0
+        });
+    }
+    buildTargets(W, H);
+}
+
+function buildTargets(W, H) {
+    const cx = W/2, cy = H/2;
+    const sc = Math.min(W, H) * 0.35;
+    targets = [];
+
+    // Singlet
+    targets.push([cx, cy]);
+
+    // Ring 1: Z7 (inner heptagon)
+    for (let k = 0; k < 7; k++) {
+        const a = k/7*TAU - PI/2;
+        targets.push([cx + Math.cos(a)*sc*0.25, cy + Math.sin(a)*sc*0.25]);
+    }
+    // Ring 2: 3 x Z7 (three generations)
+    for (let g = 0; g < 3; g++) {
+        for (let k = 0; k < 7; k++) {
+            const a = (k/7 + g/21)*TAU - PI/2;
+            targets.push([cx + Math.cos(a)*sc*0.55, cy + Math.sin(a)*sc*0.55]);
+        }
+    }
+    // Ring 3: 42 nodes (PSL(2,7) outer)
+    for (let k = 0; k < 42; k++) {
+        const a = k/42*TAU - PI/2;
+        targets.push([cx + Math.cos(a)*sc*0.82, cy + Math.sin(a)*sc*0.82]);
+    }
+    // Ring 4: 84 faint outer
+    for (let k = 0; k < 84; k++) {
+        const a = k/84*TAU - PI/2;
+        targets.push([cx + Math.cos(a)*sc*1.0, cy + Math.sin(a)*sc*1.0]);
+    }
+
+    for (let i = 0; i < parts.length; i++) {
+        const t = targets[i % targets.length];
+        const j = 15;
+        parts[i].tx = t[0] + (Math.random()-0.5)*j;
+        parts[i].ty = t[1] + (Math.random()-0.5)*j;
+    }
+}
+
+function stepParts(coh, dt, W, H) {
+    const cx = W/2, cy = H/2;
+    const chaos = 1 - coh;
+    for (const p of parts) {
+        // chaos drift
+        p.vx += (Math.random()-0.5) * chaos * 3;
+        p.vy += (Math.random()-0.5) * chaos * 3;
+        // order pull
+        const dx = p.tx - p.x, dy = p.ty - p.y;
+        const f = coh * coh * 0.04;
+        p.vx += dx * f;
+        p.vy += dy * f;
+        // gentle center gravity in chaos
+        p.vx += (cx - p.x) * 0.00008 * chaos;
+        p.vy += (cy - p.y) * 0.00008 * chaos;
+        // damp
+        p.vx *= 0.94;
+        p.vy *= 0.94;
+        p.x += p.vx;
+        p.y += p.vy;
+        // walls
+        if (p.x < 0) { p.x = 0; p.vx *= -0.3; }
+        if (p.x > W) { p.x = W; p.vx *= -0.3; }
+        if (p.y < 0) { p.y = 0; p.vy *= -0.3; }
+        if (p.y > H) { p.y = H; p.vy *= -0.3; }
+        // trail
+        p.trail.push([p.x, p.y]);
+        const ml = 4 + Math.floor(coh * 25);
+        while (p.trail.length > ml) p.trail.shift();
+        // hue
+        p.hue = chaos * 5 + coh * 215;
+    }
+}
+
+// ---------- RENDERER ----------
+
+let cvs, ctx;
+
+function initCanvas() {
+    cvs = document.getElementById('canvas');
+    ctx = cvs.getContext('2d');
+    resize();
+    window.addEventListener('resize', resize);
+}
+function resize() {
+    cvs.width = window.innerWidth;
+    cvs.height = window.innerHeight;
+    if (parts.length) buildTargets(cvs.width, cvs.height);
+}
+
+function draw(coh, theta, chi2, eps, t) {
+    const W = cvs.width, H = cvs.height;
+    const cx = W/2, cy = H/2;
+    const sc = Math.min(W,H)*0.35;
+
+    // --- background ---
+    const br = 8  + (1-coh)*14;
+    const bg = 4  + coh*8;
+    const bb = 14 + coh*22;
+    ctx.fillStyle = `rgb(${br|0},${bg|0},${bb|0})`;
+    ctx.fillRect(0,0,W,H);
+
+    // --- stars ---
+    if (coh > 0.2) {
+        const sa = (coh-0.2)*0.35;
+        ctx.fillStyle = `rgba(255,255,255,${sa})`;
+        for (let i = 0; i < 80; i++) {
+            const sx = (i*7919+37)%W, sy = (i*6271+53)%H;
+            const ss = 0.4+Math.sin(t*0.0008+i*1.7)*0.3;
+            ctx.beginPath(); ctx.arc(sx,sy,ss,0,TAU); ctx.fill();
+        }
+    }
+
+    // --- breathing guide (gentle pulsing ring) ---
+    const breathPhase = (t % 14000) / 14000; // 14s cycle
+    const guideR = 30 + Math.sin(breathPhase * TAU) * 15;
+    const guideA = 0.06 + coh * 0.04;
+    ctx.strokeStyle = `rgba(100,180,255,${guideA})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, guideR, 0, TAU); ctx.stroke();
+
+    // --- geometry lines ---
+    if (coh > 0.15) {
+        const la = (coh-0.15)*0.45;
+        // Z7 heptagon
+        ctx.strokeStyle = `rgba(60,140,220,${la})`;
+        ctx.lineWidth = 0.5 + coh*1.2;
+        ctx.beginPath();
+        for (let k = 0; k <= 7; k++) {
+            const a = k/7*TAU - PI/2;
+            const x = cx+Math.cos(a)*sc*0.25, y = cy+Math.sin(a)*sc*0.25;
+            k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+
+        // inner star (connecting every 2nd vertex — heptagram {7/2})
+        if (coh > 0.35) {
+            const la2 = (coh-0.35)*0.35;
+            ctx.strokeStyle = `rgba(120,80,220,${la2})`;
+            ctx.lineWidth = 0.5 + coh;
+            ctx.beginPath();
+            for (let k = 0; k <= 7; k++) {
+                const a = (k*2%7)/7*TAU - PI/2;
+                const x = cx+Math.cos(a)*sc*0.25, y = cy+Math.sin(a)*sc*0.25;
+                k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+        }
+
+        // middle ring (21-gon)
+        if (coh > 0.4) {
+            const la3 = (coh-0.4)*0.3;
+            ctx.strokeStyle = `rgba(100,60,200,${la3})`;
+            ctx.lineWidth = 0.4 + coh*0.8;
+            ctx.beginPath();
+            for (let k = 0; k <= 21; k++) {
+                const a = k/21*TAU - PI/2;
+                const x = cx+Math.cos(a)*sc*0.55, y = cy+Math.sin(a)*sc*0.55;
+                k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+        }
+
+        // outer ring (42-gon for PSL(2,7))
+        if (coh > 0.6) {
+            const la4 = (coh-0.6)*0.3;
+            ctx.strokeStyle = `rgba(200,180,60,${la4})`;
+            ctx.lineWidth = 0.3 + coh*0.6;
+            ctx.beginPath();
+            for (let k = 0; k <= 42; k++) {
+                const a = k/42*TAU - PI/2;
+                const x = cx+Math.cos(a)*sc*0.82, y = cy+Math.sin(a)*sc*0.82;
+                k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+        }
+
+        // radial spokes (7)
+        if (coh > 0.5) {
+            const rl = (coh-0.5)*0.2;
+            ctx.strokeStyle = `rgba(80,130,220,${rl})`;
+            ctx.lineWidth = 0.5;
+            for (let k = 0; k < 7; k++) {
+                const a = k/7*TAU - PI/2;
+                ctx.beginPath();
+                ctx.moveTo(cx,cy);
+                ctx.lineTo(cx+Math.cos(a)*sc*0.82, cy+Math.sin(a)*sc*0.82);
+                ctx.stroke();
+            }
+        }
+
+        // outermost faint ring
+        if (coh > 0.75) {
+            const la5 = (coh-0.75)*0.15;
+            ctx.strokeStyle = `rgba(200,210,255,${la5})`;
+            ctx.lineWidth = 0.3;
+            ctx.beginPath();
+            for (let k = 0; k <= 84; k++) {
+                const a = k/84*TAU - PI/2;
+                const x = cx+Math.cos(a)*sc*1.0, y = cy+Math.sin(a)*sc*1.0;
+                k===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // --- particle trails ---
+    for (const p of parts) {
+        if (p.trail.length < 2) continue;
+        const sat = 80 - coh*35;
+        const lit = 45 + coh*40;
+        for (let i = 1; i < p.trail.length; i++) {
+            const a = (0.08 + coh*0.18) * (i / p.trail.length);
+            ctx.strokeStyle = `hsla(${p.hue},${sat}%,${lit}%,${a})`;
+            ctx.lineWidth = p.sz * 0.4 * (i / p.trail.length);
+            ctx.beginPath();
+            ctx.moveTo(p.trail[i-1][0], p.trail[i-1][1]);
+            ctx.lineTo(p.trail[i][0], p.trail[i][1]);
+            ctx.stroke();
+        }
+    }
+
+    // --- particles ---
+    for (const p of parts) {
+        const sat = 75 - coh*40;
+        const lit = 45 + coh*45;
+        const sz = p.sz * (1 + coh*2.5);
+
+        // glow
+        const gs = sz * (2.5 + coh*5);
+        const ga = 0.07 + coh*0.13;
+        const grd = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,gs);
+        grd.addColorStop(0, `hsla(${p.hue},${sat}%,${lit}%,${ga})`);
+        grd.addColorStop(1, `hsla(${p.hue},${sat}%,${lit}%,0)`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(p.x-gs, p.y-gs, gs*2, gs*2);
+
+        // core
+        ctx.fillStyle = `hsla(${p.hue},${sat}%,${lit}%,${0.5+coh*0.5})`;
+        ctx.beginPath(); ctx.arc(p.x,p.y,sz,0,TAU); ctx.fill();
+    }
+
+    // --- central glow ---
+    if (coh > 0.25) {
+        const ga = (coh-0.25)*0.35;
+        const gr = 40 + coh*120 + Math.sin(t*0.002)*20*coh;
+        const grd = ctx.createRadialGradient(cx,cy,0,cx,cy,gr);
+        grd.addColorStop(0, `rgba(200,220,255,${ga})`);
+        grd.addColorStop(0.4, `rgba(80,130,255,${ga*0.5})`);
+        grd.addColorStop(1, 'rgba(40,60,180,0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(cx,cy,gr,0,TAU); ctx.fill();
+    }
+
+    // --- peak flash ---
+    if (coh > 0.92) {
+        const fa = (coh - 0.92) * 4;
+        const fr = sc * 1.2;
+        const grd = ctx.createRadialGradient(cx,cy,0,cx,cy,fr);
+        grd.addColorStop(0, `rgba(255,250,230,${fa*0.15})`);
+        grd.addColorStop(1, 'rgba(255,250,230,0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(cx,cy,fr,0,TAU); ctx.fill();
+    }
+
+    // --- unit circle indicator (bottom-left) ---
+    const ur = 35, ux = 70, uy = H - 65;
+    ctx.strokeStyle = 'rgba(80,130,200,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(ux,uy,ur,0,TAU); ctx.stroke();
+
+    // tau dot
+    const tRad = theta * PI / 180;
+    const dx2 = ux + Math.cos(tRad)*ur;
+    const dy2 = uy - Math.sin(tRad)*ur;
+    ctx.fillStyle = coh > 0.7 ? '#ffdd44' : '#4499cc';
+    ctx.beginPath(); ctx.arc(dx2,dy2,3.5,0,TAU); ctx.fill();
+
+    // 45 degree marker
+    const m5x = ux + Math.cos(PI/4)*ur;
+    const m5y = uy - Math.sin(PI/4)*ur;
+    ctx.fillStyle = 'rgba(255,215,0,0.25)';
+    ctx.beginPath(); ctx.arc(m5x,m5y,2,0,TAU); ctx.fill();
+
+    ctx.fillStyle = 'rgba(80,120,180,0.35)';
+    ctx.font = '9px Courier New';
+    ctx.fillText('|tau|=1', ux-18, uy+ur+14);
+    ctx.fillText('45', m5x+5, m5y-5);
+
+    // --- equations that appear at high coherence ---
+    const eqEl = document.getElementById('equations');
+    if (coh > 0.6) {
+        const eqAlpha = Math.min(1, (coh - 0.6) * 2.5);
+        eqEl.style.color = `rgba(180,200,255,${eqAlpha * 0.6})`;
+        if (coh > 0.85)
+            eqEl.textContent = 'cos(4pi/7) = -sin(pi/14)    |    G2 = Aut(O)    |    168 = |PSL(2,7)|';
+        else
+            eqEl.textContent = 'epsilon = |Y2/Y1| = ' + eps.toFixed(4) + '    |    chi^2 = ' + chi2.toFixed(1);
+    } else {
+        eqEl.style.color = 'rgba(255,255,255,0)';
+    }
+}
+
+// ---------- GAME STATE ----------
+
+let score = 0, level = 'CHAOS', tRes = 0, running = false;
+
+const LEVELS = [
+    [0,    'CHAOS'],
+    [0.15, 'FLUCTUATION'],
+    [0.30, 'EMERGENCE'],
+    [0.45, 'STRUCTURE'],
+    [0.60, 'SYMMETRY'],
+    [0.75, 'COHERENCE'],
+    [0.88, 'RESONANCE'],
+    [0.95, 'G2']
+];
+
+function gameStep(coh, dt) {
+    if (coh > 0.6) {
+        tRes += dt;
+        score += coh * dt * 12;
+    } else {
+        tRes = Math.max(0, tRes - dt*0.3);
+    }
+    for (let i = LEVELS.length-1; i >= 0; i--) {
+        if (coh >= LEVELS[i][0]) { level = LEVELS[i][1]; break; }
+    }
+}
+
+// ---------- MAIN LOOP ----------
+
+let lastT = 0;
+let smoothCoh = 0;
+
+function loop(t) {
+    if (!running) { requestAnimationFrame(loop); return; }
+    const dt = Math.min((t - lastT) / 1000, 0.1);
+    lastT = t;
+
+    detectBreath(t);
+    const theta = getTheta();
+    const { chi2, epsilon } = lookup(theta);
+
+    // coherence (log-normalized inverse chi2)
+    const raw = 1 - (Math.log(chi2+1) - logMin) / (logMax - logMin);
+    const coh = Math.max(0, Math.min(1, raw));
+    smoothCoh += (coh - smoothCoh) * 0.08;
+
+    stepParts(smoothCoh, dt, cvs.width, cvs.height);
+    gameStep(smoothCoh, dt);
+    updateTones(smoothCoh);
+    draw(smoothCoh, theta, chi2, epsilon, t);
+
+    // HUD
+    document.getElementById('h-th').textContent = theta.toFixed(1);
+    document.getElementById('h-c2').textContent = chi2.toFixed(1);
+    document.getElementById('h-ep').textContent = epsilon.toFixed(4);
+    document.getElementById('h-br').textContent = breathPeriod.toFixed(1);
+    document.getElementById('h-co').textContent = (smoothCoh*100).toFixed(0) + '%';
+    document.getElementById('cfill').style.width = (smoothCoh*100) + '%';
+    document.getElementById('sc-v').textContent = Math.floor(score);
+    document.getElementById('sc-l').textContent = level;
+
+    requestAnimationFrame(loop);
+}
+
+// ---------- INIT ----------
+
+function start() {
+    document.getElementById('intro').style.display = 'none';
+    ['hud','cbar','score-box'].forEach(id => {
+        document.getElementById(id).style.opacity = '1';
+    });
+    initCanvas();
+    initParts(cvs.width, cvs.height);
+    initMic().then(() => {
+        try { initTones(); } catch(e) {}
+    });
+    if (manual) document.getElementById('manual').style.display = 'flex';
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(loop);
+}
+
+document.getElementById('go').addEventListener('click', start);
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь') {
+        manual = !manual;
+        document.getElementById('manual').style.display = manual ? 'flex' : 'none';
+    }
+});
+
+const sl = document.getElementById('theta-sl');
+sl.addEventListener('input', () => {
+    manualTh = parseFloat(sl.value);
+    document.getElementById('sl-v').textContent = manualTh.toFixed(1);
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
